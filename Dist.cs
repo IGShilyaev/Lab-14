@@ -18,7 +18,5 @@ namespace Lab14
             orgs = new List<Organization>();
             foreach (Organization x in arr)  orgs.Add(x); 
         }
-
-        
     }
 }
