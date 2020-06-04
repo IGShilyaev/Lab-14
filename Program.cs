@@ -59,8 +59,11 @@ namespace Lab14
         //
         static void OrgsNames(List<Dist> city)
         {
-            var x = from dist in city where dist.Name == "Area-B" select dist.orgs;
-            foreach (var a in x) foreach (Organization org in a) Console.Write(org.Name + "  ");
+            var x = from dist in city where dist.Name == "Area-B" from org in dist.orgs select org;
+            foreach (var org in x)
+            {
+                Console.Write(org.Name + "  "); 
+            }
             Console.WriteLine();
         }
 
@@ -69,8 +72,8 @@ namespace Lab14
             Func<Dist, bool> searchFilter = delegate (Dist dist ) { return dist.Name == "Area-B"; };
             Func<Dist, List<Organization>> itemToProcess = delegate (Dist dist) { return dist.orgs; };
 
-            var x = city.Where(searchFilter).Select(itemToProcess);
-            foreach (var a in x) foreach (Organization org in a) Console.Write(org.Name + "  ");
+            var x = city.Where(searchFilter).SelectMany(itemToProcess);
+            foreach (var a in x)  Console.Write(a.Name + "  ");
             Console.WriteLine();
         }
         //------------------------------------------------------------------------------------------------------------
@@ -81,26 +84,19 @@ namespace Lab14
         //
         static void NumLibs(List<Dist> city)
         {
-            int numb = 0;
-            var list = from dist in city select dist.orgs;
-            foreach(var x in list)
-            {
-                numb += (from org in x select org).Count();
-            }
+            var numb = (from dist in city from org in dist.orgs select org).Count();
             Console.WriteLine(numb);
         }
 
 
-
         static void NumLibsExp(List<Dist> city)
         {
-            int numb = 0;
             Func<Dist, List<Organization>> allOrgs = delegate (Dist dist) { return dist.orgs; };
             Func<List<Organization>, int> counter = delegate (List<Organization> list) { return list.Count; };
 
-            var x = city.Select(allOrgs);
-            numb += x.Select(counter).Aggregate((a,b) => a + b);
-            Console.WriteLine(numb);
+            var x = city.SelectMany(allOrgs).Count();
+            
+            Console.WriteLine(x);
         }
         //------------------------------------------------------------------------------------------------------------
         //------------------------------------------------------------------------------------------------------------
@@ -110,30 +106,22 @@ namespace Lab14
         //
         static void EngAmount(List<Dist> city)
         {
-            int engs = 0;
-            var orgs = from dist in city select dist.orgs;
-            foreach(var x in orgs)
-            {
-                engs += (from org in x where org as Plant != null select (org as Plant).NumberOfEng).Sum();
-            }
-
+            var engs = (from dist in city 
+                    from org in dist.orgs 
+                    where org as Plant != null 
+                    select (org as Plant).NumberOfEng).Aggregate((a,b) => a + b);
+            
             Console.WriteLine(engs);
         }
 
         static void EngAmountExp(List<Dist> city)
         {
-            int engs = 0;
             Func<Dist, List<Organization>> allOrgs = delegate (Dist dist) { return dist.orgs; };
             Func<Organization, bool> searchFilter = delegate (Organization org) { return (org is Plant); };
-            Func<Organization, Plant> item = delegate (Organization p) { return p as Plant; };
-            Func<Plant, int> value = delegate (Plant p) { return p.NumberOfEng; };
+            Func<Organization, int> item = delegate (Organization p) { return (p as Plant).NumberOfEng; };
+            Func<int, int, int> sum = delegate (int a, int b) { return a + b; };
 
-            var x = city.Select(allOrgs);
-            foreach (var y in x)
-            {
-                var tekOrg = y.Where(searchFilter).Select(item);
-                engs += tekOrg.Select(value).Sum();
-            }
+            var engs = city.SelectMany(allOrgs).Where(searchFilter).Select(item).Aggregate(sum);
             Console.WriteLine(engs);
         }
         //------------------------------------------------------------------------------------------------------------
@@ -144,10 +132,11 @@ namespace Lab14
         //
         static void ABOrgs(List<Dist> city)
         {
-            var x = (from dist in city where dist.Name == "Area-A" select dist.orgs).Union(from dist in city where dist.Name == "Area-B" select dist.orgs);
-            foreach(var y in x)
+            var x =from list in (from dist in city where dist.Name == "Area-A" select dist.orgs).Union(from dist in city where dist.Name == "Area-B" select dist.orgs) 
+                   from org in list select org;
+            foreach(var org in x)
             {
-                foreach (Organization org in y) Console.Write(org.Name + "  ");
+                Console.Write(org.Name + "  ");
             }
             Console.WriteLine();
         }
@@ -155,15 +144,14 @@ namespace Lab14
         static void ABOrgsExp(List<Dist> city)
         {
             Func<Dist, List<Organization>> orgs = delegate (Dist dist) { return dist.orgs; };
+            Func<Organization, Organization> org = delegate (Organization f) { return f; } ;
             Func<Dist, bool> filter1 = delegate (Dist dist) { return dist.Name == "Area-A"; };
             Func<Dist, bool> filter2 = delegate (Dist dist) { return dist.Name == "Area-B"; };
 
-            var x = city.Where(filter1).Select(orgs);
-            var y = city.Where(filter2).Select(orgs);
-            var un = x.Union(y);
-            foreach (var a in un)
+            var x = city.Where(filter1).SelectMany(orgs).Union(city.Where(filter2).SelectMany(orgs)).Select(org);
+            foreach (var tekOrg in x)
             {
-                foreach (Organization tekOrg in a) Console.Write(tekOrg.Name + "  ");
+                 Console.Write(tekOrg.Name + "  ");
             }
 
             Console.WriteLine();
@@ -177,11 +165,11 @@ namespace Lab14
         static void FoundedOrgs(List<Dist> city)
         {
             Console.WriteLine("------------------------------------------");
-            var x = from dist in city where dist.Name == "Area-C" select dist.orgs;
-            foreach (var a in x)
+            var x = from dist in city where dist.Name == "Area-C" from org in dist.orgs orderby org select org;
+            foreach (var org in x)
             {
-                var orgs = from org in a orderby org select org;
-                foreach (Organization org in orgs) { org.VShow(); Console.WriteLine(); }
+                org.VShow();
+                Console.WriteLine();
             }
             Console.WriteLine("------------------------------------------");
             Console.WriteLine();
@@ -194,15 +182,50 @@ namespace Lab14
             Func<Dist, bool> filter = delegate (Dist dist) { return dist.Name == "Area-C"; };
             Func<Organization, Organization> item = delegate (Organization org) { return org; };
 
-            var x = city.Where(filter).Select(listItem);
-            foreach(var a in x)
+            var x = city.Where(filter).SelectMany(listItem).OrderBy(item).Select(item);
+            foreach(var org in x)
             {
-                var y = a.OrderBy(item).Select(item);
-                foreach (Organization org in y) { org.VShow(); Console.WriteLine(); }
+                org.VShow();
+                Console.WriteLine();
             }
             Console.WriteLine("------------------------------------------");
             Console.WriteLine();
         }
 
+         //Группировка по районам
+        static void DistGroups(List<Dist> city)
+        {
+            var x = from dist in city from org in dist.orgs group org by dist.Name;
+            foreach (var y in x)
+            {
+                Console.Write(y.Key + ": ");
+                foreach (var org in y)
+                {
+                     Console.Write(org.Name + "  ");
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+        }
+
+        static void DistGroupsExp(List<Dist> city)
+        {
+            Func<Dist, string> name = delegate (Dist dist) { return dist.Name; };
+            Func<Dist, List<Organization>> list = delegate (Dist dist) { return dist.orgs; };
+
+            var x = city.GroupBy(name);
+            foreach (var g in x)
+            {
+                Console.Write(g.Key + ": ");
+                var y = g.SelectMany(list);
+                foreach (var org in y)
+                {
+                    Console.Write(org.Name + "  ");
+                }
+                Console.WriteLine();
+            } 
+
+        }
+        
     }
 }
